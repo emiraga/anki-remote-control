@@ -622,6 +622,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = AnkiRemote;
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "AnkiRemote needs local network access to\n  send commands to the Anki server on your Mac.";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = ga.emira.AnkiRemote;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -656,6 +657,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = AnkiRemote;
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "AnkiRemote needs local network access to\n  send commands to the Anki server on your Mac.";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = ga.emira.AnkiRemote;
 				LD_RUNPATH_SEARCH_PATHS = (

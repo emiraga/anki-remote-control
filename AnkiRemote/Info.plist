@@ -7,5 +7,10 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_ankiremote._udp.</string>
+		<string>_ankiremote._tcp.</string>
+	</array>
 </dict>
 </plist>

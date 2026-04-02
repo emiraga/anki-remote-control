@@ -9,9 +9,9 @@ import CoreMotion
 import SwiftUI
 
 struct ContentView: View {
-    private let baseURL = "http://192.168.40.221:27701"
     private let crownThreshold: Double = 3.0
 
+    @State private var server = ServerConnection()
     @State private var lastResult: String = ""
     @State private var isLoading = false
     @State private var motionDetector = MotionDetector()
@@ -49,16 +49,25 @@ struct ContentView: View {
                 .frame(width: 0, height: 0)
                 .handGestureShortcut(.primaryAction)
 
-                if !lastResult.isEmpty {
-                    Text(lastResult)
-                        .font(.system(.caption, design: .monospaced))
-                        .foregroundStyle(isLoading ? .yellow : (lastResult == "OK" ? .green : .red))
+                HStack(spacing: 4) {
+                    Circle()
+                        .fill(server.baseURL != nil ? .green : .red)
+                        .frame(width: 6, height: 6)
+                    if !lastResult.isEmpty {
+                        Text(lastResult)
+                            .font(.system(.caption, design: .monospaced))
+                            .foregroundStyle(isLoading ? .yellow : (lastResult == "OK" ? .green : .red))
+                    } else if server.baseURL == nil {
+                        Text("Searching…")
+                            .font(.system(.caption, design: .monospaced))
+                            .foregroundStyle(.yellow)
+                    }
                 }
 
                 crownIndicator
 
                 NavigationLink {
-                    CustomCommandsView(baseURL: baseURL)
+                    CustomCommandsView(server: server)
                 } label: {
                     Text("Custom")
 
@@ -95,6 +104,7 @@ struct ContentView: View {
             }
         }
         .onAppear {
+            server.start()
             motionDetector.onShake = {
                 Task { await sendCommand("/undo") }
             }
@@ -105,6 +115,7 @@ struct ContentView: View {
         }
         .onDisappear {
             motionDetector.stop()
+            server.stop()
         }
     }
 
@@ -140,6 +151,11 @@ struct ContentView: View {
         isLoading = true
         defer { isLoading = false }
 
+        guard let baseURL = server.baseURL else {
+            lastResult = "No server"
+            return
+        }
+
         guard let url = URL(string: baseURL + path) else {
             lastResult = "Bad URL"
             return
@@ -166,7 +182,7 @@ struct ContentView: View {
 }
 
 struct CustomCommandsView: View {
-    let baseURL: String
+    let server: ServerConnection
 
     @State private var lastResult: String = ""
 
@@ -214,6 +230,11 @@ struct CustomCommandsView: View {
     }
 
     private func sendCommand(_ path: String) async {
+        guard let baseURL = server.baseURL else {
+            lastResult = "No server"
+            return
+        }
+
         guard let url = URL(string: baseURL + path) else {
             lastResult = "Bad URL"
             return

@@ -6,6 +6,7 @@
 #     "pyobjc-framework-Quartz>=11.0",
 #     "pyobjc-framework-Cocoa>=11.0",
 #     "pyobjc-framework-ApplicationServices>=11.0",
+#     "zeroconf>=0.140",
 # ]
 # ///
 """
@@ -23,6 +24,7 @@ Endpoints:
 
 import argparse
 import logging
+import socket
 import sys
 import time
 
@@ -152,6 +154,34 @@ def health():
     return jsonify({"status": "ok"})
 
 
+def _get_local_ip() -> str:
+    """Get the local IP address used for LAN communication."""
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(("10.255.255.255", 1))
+        return s.getsockname()[0]
+    finally:
+        s.close()
+
+
+def _advertise_bonjour(port: int):
+    """Advertise the HTTP server via Bonjour/mDNS so the watch can discover it."""
+    from zeroconf import ServiceInfo, Zeroconf
+
+    local_ip = _get_local_ip()
+    info = ServiceInfo(
+        "_ankiremote._tcp.local.",
+        "AnkiRemote._ankiremote._tcp.local.",
+        addresses=[socket.inet_aton(local_ip)],
+        port=port,
+        properties={"ip": local_ip, "port": str(port)},
+    )
+    zc = Zeroconf()
+    zc.register_service(info)
+    logger.info("Bonjour: advertising _ankiremote._tcp at %s:%d", local_ip, port)
+    return zc
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Anki Remote Control — HTTP server that sends keystrokes to Anki.",
@@ -179,8 +209,20 @@ endpoints:
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
 
+    zc = _advertise_bonjour(args.port)
+
     logger.info("Starting Anki Remote Control on http://0.0.0.0:%d", args.port)
-    app.run(host="0.0.0.0", port=args.port, debug=args.verbose, threaded=True)
+    try:
+        app.run(
+            host="0.0.0.0",
+            port=args.port,
+            debug=args.verbose,
+            threaded=True,
+            use_reloader=False,
+        )
+    finally:
+        zc.unregister_all_services()
+        zc.close()
 
 
 if __name__ == "__main__":
