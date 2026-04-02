@@ -40,6 +40,7 @@ struct ContentView: View {
                     }
                 }
 
+                // Hidden button for Double Tap
                 Button {
                     Task { await sendCommand("/reveal") }
                 } label: {
@@ -50,9 +51,8 @@ struct ContentView: View {
 
                 if !lastResult.isEmpty {
                     Text(lastResult)
-                        .font(.caption)
-                        .foregroundStyle(lastResult == "OK" ? .green : .red)
-                        .frame(maxWidth: .infinity)
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(isLoading ? .yellow : (lastResult == "OK" ? .green : .red))
                 }
 
                 crownIndicator
@@ -61,8 +61,10 @@ struct ContentView: View {
                     CustomCommandsView(baseURL: baseURL)
                 } label: {
                     Text("Custom")
-                        .font(.caption2)
+
                 }
+                .font(.caption2)
+                .buttonStyle(.plain)
             }
             .padding(.horizontal)
             .toolbar(.hidden)
@@ -146,6 +148,9 @@ struct ContentView: View {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.timeoutInterval = 5
+
+        // Disable cookies/cache for raw speed
+        request.cachePolicy = .reloadIgnoringLocalCacheData
 
         do {
             let (_, response) = try await URLSession.shared.data(for: request)
