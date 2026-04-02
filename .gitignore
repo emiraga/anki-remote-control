@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.pyc
+
+# Xcode
+AnkiRemote/build/
+AnkiRemote/DerivedData/
+AnkiRemote/**/*.xcuserdata
+AnkiRemote/**/*.xcworkspace/xcuserdata/
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+*.xccheckout
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# macOS
+.DS_Store
