@@ -5,9 +5,8 @@
 //  Created by Emir B on 4/2/26.
 //
 
-import SwiftUI
-
 import CoreMotion
+import SwiftUI
 
 struct ContentView: View {
     private let baseURL = "http://192.168.40.221:27701"
@@ -169,11 +168,13 @@ struct CustomCommandsView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 8) {
-                LazyVGrid(columns: [
-                    GridItem(.flexible()),
-                    GridItem(.flexible()),
-                    GridItem(.flexible()),
-                ], spacing: 8) {
+                LazyVGrid(
+                    columns: [
+                        GridItem(.flexible()),
+                        GridItem(.flexible()),
+                        GridItem(.flexible()),
+                    ], spacing: 8
+                ) {
                     ForEach(1...9, id: \.self) { n in
                         Button {
                             Task { await sendCommand("/custom/\(n)") }
