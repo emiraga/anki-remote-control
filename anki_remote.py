@@ -32,10 +32,11 @@ from AppKit import NSWorkspace, NSRunningApplication
 from Quartz import (
     CGEventCreateKeyboardEvent,
     CGEventSetFlags,
-    CGEventPostToPid,
+    CGEventPost,
     kCGEventFlagMaskCommand,
     kCGEventFlagMaskControl,
     kCGEventFlagMaskShift,
+    kCGHIDEventTap,
 )
 
 logger = logging.getLogger("anki_remote")
@@ -77,30 +78,19 @@ def _find_anki() -> NSRunningApplication:
     raise RuntimeError("Anki is not running")
 
 
-def _activate_anki() -> None:
-    """Bring Anki to the foreground, only if not already active."""
+def _send_to_anki(keycode: int, flags: int = 0) -> None:
+    """Activate Anki and send a keystroke via HID event tap."""
     anki = _find_anki()
     if not anki.isActive():
         anki.activateWithOptions_(0)
-
-
-def _send_key_to_anki(keycode: int, flags: int = 0) -> None:
-    """Send a keystroke directly to the Anki process."""
-    anki = _find_anki()
-    pid = anki.processIdentifier()
-    logger.debug("Sending keycode=0x%02X flags=0x%X to pid=%d", keycode, flags, pid)
+    logger.debug("Sending keycode=0x%02X flags=0x%X", keycode, flags)
     down = CGEventCreateKeyboardEvent(None, keycode, True)
     up = CGEventCreateKeyboardEvent(None, keycode, False)
     if flags:
         CGEventSetFlags(down, flags)
         CGEventSetFlags(up, flags)
-    CGEventPostToPid(pid, down)
-    CGEventPostToPid(pid, up)
-
-
-def _send_to_anki(keycode: int, flags: int = 0) -> None:
-    """Send a keystroke to Anki."""
-    _send_key_to_anki(keycode, flags)
+    CGEventPost(kCGHIDEventTap, down)
+    CGEventPost(kCGHIDEventTap, up)
 
 
 @app.post("/reveal")
