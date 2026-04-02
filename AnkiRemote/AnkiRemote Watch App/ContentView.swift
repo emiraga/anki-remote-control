@@ -147,7 +147,7 @@ struct ContentView: View {
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        request.timeoutInterval = 5
+        request.timeoutInterval = 4
 
         // Disable cookies/cache for raw speed
         request.cachePolicy = .reloadIgnoringLocalCacheData
