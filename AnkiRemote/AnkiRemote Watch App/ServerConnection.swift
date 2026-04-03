@@ -14,6 +14,18 @@ class ServerConnection {
     private(set) var baseURL: String?
 
     func start() {
+        guard browser == nil else { return }
+        if baseURL != nil { return }
+        startBrowsing()
+    }
+
+    func rediscover() {
+        baseURL = nil
+        stopBrowsing()
+        startBrowsing()
+    }
+
+    private func startBrowsing() {
         let browser = NWBrowser(
             for: .bonjourWithTXTRecord(type: "_ankiremote._tcp.", domain: nil),
             using: NWParameters()
@@ -24,16 +36,17 @@ class ServerConnection {
             guard let self else { return }
             if let result = results.first {
                 resolveBaseURL(from: result)
+                stopBrowsing()
             } else {
                 baseURL = nil
             }
         }
 
-        browser.stateUpdateHandler = { state in
+        browser.stateUpdateHandler = { [weak self] state in
             if case .failed = state {
-                browser.cancel()
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
-                    self?.start()
+                self?.stopBrowsing()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                    self?.startBrowsing()
                 }
             }
         }
@@ -51,9 +64,13 @@ class ServerConnection {
         }
     }
 
-    func stop() {
+    private func stopBrowsing() {
         browser?.cancel()
         browser = nil
+    }
+
+    func stop() {
+        stopBrowsing()
         baseURL = nil
     }
 }

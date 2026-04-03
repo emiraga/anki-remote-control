@@ -11,6 +11,7 @@ import SwiftUI
 struct ContentView: View {
     private let crownThreshold: Double = 3.0
 
+    @Environment(\.scenePhase) private var scenePhase
     @State private var server = ServerConnection()
     @State private var lastResult: String = ""
     @State private var isLoading = false
@@ -117,6 +118,18 @@ struct ContentView: View {
             motionDetector.stop()
             server.stop()
         }
+        .onChange(of: scenePhase) { _, newPhase in
+            switch newPhase {
+            case .active:
+                motionDetector.start()
+                server.start()
+            case .inactive, .background:
+                motionDetector.stop()
+                server.stop()
+            @unknown default:
+                break
+            }
+        }
     }
 
     private var crownIndicator: some View {
@@ -174,9 +187,11 @@ struct ContentView: View {
                 lastResult = "OK"
             } else {
                 lastResult = "Error"
+                server.rediscover()
             }
         } catch {
             lastResult = error.localizedDescription
+            server.rediscover()
         }
     }
 }
@@ -260,19 +275,27 @@ struct CustomCommandsView: View {
 @Observable
 class MotionDetector {
     private let motionManager = CMMotionManager()
+    private let motionQueue = OperationQueue()
     private let shakeThreshold: Double = 2.5
     private let flickThreshold: Double = 5.0
     private let cooldown: TimeInterval = 1.0
     private var lastShakeTime: Date = .distantPast
     private var lastFlickTime: Date = .distantPast
+    private var isRunning = false
 
     var onShake: (() -> Void)?
     var onFlick: (() -> Void)?
 
+    init() {
+        motionQueue.name = "MotionDetector"
+        motionQueue.maxConcurrentOperationCount = 1
+    }
+
     func start() {
-        guard motionManager.isDeviceMotionAvailable else { return }
-        motionManager.deviceMotionUpdateInterval = 0.05
-        motionManager.startDeviceMotionUpdates(to: .main) { [weak self] motion, _ in
+        guard !isRunning, motionManager.isDeviceMotionAvailable else { return }
+        isRunning = true
+        motionManager.deviceMotionUpdateInterval = 0.1
+        motionManager.startDeviceMotionUpdates(to: motionQueue) { [weak self] motion, _ in
             guard let self, let motion else { return }
             let now = Date()
 
@@ -281,19 +304,21 @@ class MotionDetector {
             let accelMagnitude = sqrt(accel.x * accel.x + accel.y * accel.y + accel.z * accel.z)
             if accelMagnitude > shakeThreshold && now.timeIntervalSince(lastShakeTime) > cooldown {
                 lastShakeTime = now
-                onShake?()
+                DispatchQueue.main.async { self.onShake?() }
             }
 
             // Wrist flick detection via gyroscope rotation around X axis
             let rotationX = motion.rotationRate.x
             if rotationX < -flickThreshold && now.timeIntervalSince(lastFlickTime) > cooldown {
                 lastFlickTime = now
-                onFlick?()
+                DispatchQueue.main.async { self.onFlick?() }
             }
         }
     }
 
     func stop() {
+        guard isRunning else { return }
+        isRunning = false
         motionManager.stopDeviceMotionUpdates()
     }
 }
