@@ -5,7 +5,6 @@
 //  Created by Emir B on 4/2/26.
 //
 
-import CoreMotion
 import SwiftUI
 
 struct ContentView: View {
@@ -15,33 +14,13 @@ struct ContentView: View {
     @State private var server = ServerConnection()
     @State private var lastResult: String = ""
     @State private var isLoading = false
-    @State private var motionDetector = MotionDetector()
     @State private var crownValue: Double = 0.0
     @State private var lastCrownAction: Date = .distantPast
-    @State private var showCustom = false
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 10) {
-                HStack(spacing: 12) {
-                    ActionButton(
-                        title: "Again",
-                        subtitle: "1",
-                        color: .red
-                    ) {
-                        await sendCommand("/answer/again")
-                    }
-
-                    ActionButton(
-                        title: "Good",
-                        subtitle: "3",
-                        color: .green
-                    ) {
-                        await sendCommand("/answer/good")
-                    }
-                }
-
-                // Hidden button for Double Tap
+                // Double Tap → reveal
                 Button {
                     Task { await sendCommand("/reveal") }
                 } label: {
@@ -49,6 +28,24 @@ struct ContentView: View {
                 }
                 .frame(width: 0, height: 0)
                 .handGestureShortcut(.primaryAction)
+
+                HStack(spacing: 12) {
+                    ActionButton(
+                        title: "Undo",
+                        subtitle: "↩",
+                        color: .orange
+                    ) {
+                        await sendCommand("/undo")
+                    }
+
+                    ActionButton(
+                        title: "Replay",
+                        subtitle: "🔊",
+                        color: .blue
+                    ) {
+                        await sendCommand("/replay")
+                    }
+                }
 
                 HStack(spacing: 4) {
                     Circle()
@@ -71,7 +68,6 @@ struct ContentView: View {
                     CustomCommandsView(server: server)
                 } label: {
                     Text("Custom")
-
                 }
                 .font(.caption2)
                 .buttonStyle(.plain)
@@ -106,25 +102,15 @@ struct ContentView: View {
         }
         .onAppear {
             server.start()
-            motionDetector.onShake = {
-                Task { await sendCommand("/undo") }
-            }
-            motionDetector.onFlick = {
-                Task { await sendCommand("/replay") }
-            }
-            motionDetector.start()
         }
         .onDisappear {
-            motionDetector.stop()
             server.stop()
         }
         .onChange(of: scenePhase) { _, newPhase in
             switch newPhase {
             case .active:
-                motionDetector.start()
                 server.start()
             case .inactive, .background:
-                motionDetector.stop()
                 server.stop()
             @unknown default:
                 break
@@ -272,56 +258,6 @@ struct CustomCommandsView: View {
     }
 }
 
-@Observable
-class MotionDetector {
-    private let motionManager = CMMotionManager()
-    private let motionQueue = OperationQueue()
-    private let shakeThreshold: Double = 2.5
-    private let flickThreshold: Double = 5.0
-    private let cooldown: TimeInterval = 1.0
-    private var lastShakeTime: Date = .distantPast
-    private var lastFlickTime: Date = .distantPast
-    private var isRunning = false
-
-    var onShake: (() -> Void)?
-    var onFlick: (() -> Void)?
-
-    init() {
-        motionQueue.name = "MotionDetector"
-        motionQueue.maxConcurrentOperationCount = 1
-    }
-
-    func start() {
-        guard !isRunning, motionManager.isDeviceMotionAvailable else { return }
-        isRunning = true
-        motionManager.deviceMotionUpdateInterval = 0.1
-        motionManager.startDeviceMotionUpdates(to: motionQueue) { [weak self] motion, _ in
-            guard let self, let motion else { return }
-            let now = Date()
-
-            // Shake detection via user acceleration
-            let accel = motion.userAcceleration
-            let accelMagnitude = sqrt(accel.x * accel.x + accel.y * accel.y + accel.z * accel.z)
-            if accelMagnitude > shakeThreshold && now.timeIntervalSince(lastShakeTime) > cooldown {
-                lastShakeTime = now
-                DispatchQueue.main.async { self.onShake?() }
-            }
-
-            // Wrist flick detection via gyroscope rotation around X axis
-            let rotationX = motion.rotationRate.x
-            if rotationX < -flickThreshold && now.timeIntervalSince(lastFlickTime) > cooldown {
-                lastFlickTime = now
-                DispatchQueue.main.async { self.onFlick?() }
-            }
-        }
-    }
-
-    func stop() {
-        guard isRunning else { return }
-        isRunning = false
-        motionManager.stopDeviceMotionUpdates()
-    }
-}
 
 struct ActionButton: View {
     let title: String
