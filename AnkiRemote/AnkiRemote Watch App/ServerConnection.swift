@@ -37,9 +37,8 @@ class ServerConnection {
             if let result = results.first {
                 resolveBaseURL(from: result)
                 stopBrowsing()
-            } else {
-                baseURL = nil
             }
+            // Don't nil baseURL on transient empty results — keep last known server
         }
 
         browser.stateUpdateHandler = { [weak self] state in
@@ -71,6 +70,6 @@ class ServerConnection {
 
     func stop() {
         stopBrowsing()
-        baseURL = nil
+        // Keep baseURL cached — rediscover() will clear it if needed
     }
 }
