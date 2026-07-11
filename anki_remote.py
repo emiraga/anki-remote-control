@@ -44,6 +44,17 @@ from Quartz import (
 logger = logging.getLogger("anki_remote")
 app = Flask(__name__)
 
+
+class AnkiNotRunning(RuntimeError):
+    """Raised when the Anki app cannot be found among running processes."""
+
+
+@app.errorhandler(AnkiNotRunning)
+def _handle_anki_not_running(exc: AnkiNotRunning):
+    """Map the expected 'Anki not running' condition to a clean 503."""
+    logger.warning("Anki not running: %s", exc)
+    return jsonify({"status": "error", "error": "anki_not_running"}), 503
+
 # macOS virtual keycodes
 KEYCODE_MAP: dict[str, int] = {
     "1": 0x12,
@@ -62,6 +73,12 @@ KEYCODE_MAP: dict[str, int] = {
 }
 
 
+# Anki's bundle identifier varies by version: "net.ankiweb.dtop" for classic
+# builds, "net.ankiweb.launcher" for the newer Anki Launcher that owns the window.
+ANKI_BUNDLE_IDS: frozenset[str] = frozenset(
+    {"net.ankiweb.dtop", "net.ankiweb.launcher"}
+)
+
 _cached_anki_app: NSRunningApplication | None = None
 
 
@@ -73,11 +90,11 @@ def _find_anki() -> NSRunningApplication:
     logger.debug("Looking for Anki process...")
     workspace = NSWorkspace.sharedWorkspace()
     for running_app in workspace.runningApplications():
-        if running_app.bundleIdentifier() == "net.ankiweb.dtop":
+        if running_app.bundleIdentifier() in ANKI_BUNDLE_IDS:
             logger.debug("Found Anki (pid=%s)", running_app.processIdentifier())
             _cached_anki_app = running_app
             return running_app
-    raise RuntimeError("Anki is not running")
+    raise AnkiNotRunning("Anki is not running")
 
 
 def _send_to_anki(keycode: int, flags: int = 0) -> None:
